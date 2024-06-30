@@ -1,0 +1,423 @@
+name: 'Base Infra Deployment'
+
+pool: Adowinhostedscalesetpool-dev
+
+parameters:
+
+    - name: ApplicationName
+      displayName: ApplicationName to create for
+    - name: Region
+      displayName: Region to create in
+      type: string
+    - name: BusinessSegment
+      displayName: Business Segment to create for
+      type: string
+    - name: Environment
+      displayName: Environment to create in
+      type: string
+    - name: BillingApplicationName
+      displayName: BillingApplicationName for tags
+      type: string
+    - name: SystemOwner
+      displayName: SystemOwner for tags
+      type: string
+    - name: TechnicalOwner
+      displayName: TechnicalOwner for tags
+      type: string
+    - name: TCKey
+      displayName: TCKey for tags
+      type: string
+    - name: TeamEmail
+      displayName: TeamEmail for tags
+      type: string
+    - name: CallOutGroup
+      displayName: CallOutGroup for tags
+    - name: RemedyGroup
+      displayName: RemedyGroup for tags
+      type: string
+    - name: ElevatedAccount
+      displayName: ElevatedAccount for permissions
+      type: string
+    - name: UTRKey
+      displayName: UTR
+      type: string
+    - name: BSLSystemOwner
+      displayName: BSL System Owner
+      type: string
+    - name: ResourceGroups
+      displayName: Resource groups
+      type: string
+    - name: SystemOwnerImmutableId
+      displayName: System Owner Identifier
+      type: string
+    - name: ElevatedImmutableId
+      displayName: Elvated Technical Owner Identifier
+      type: string
+    
+pr: none
+
+trigger:
+    - none
+
+variables:
+  - template: pipeline.variables.yml
+  - template: remedy.variables.yml
+
+stages:
+# -------------------- #
+# Open Change Request Stage #
+# -------------------- #
+  # - stage: Create_Request
+  #   displayName: Create_Remedy_Change_Request
+  #   jobs:
+  #     - template: RemedyIntergration/Templates/CreateChangeRemedy.yml
+
+  - stage: CreateSubscription
+    displayName: 'Create Subscription and Resource Group'
+    jobs:
+     - job: CreateSub
+       timeoutInMinutes: 120
+       displayName: Create Subscription and Resource Group
+       steps:
+         - task: AzurePowerShell@5
+           inputs:
+              azureSubscription: 'ZAR Platform Automation'
+              ScriptType: 'FilePath'
+              ScriptPath: './AzureEnablement/BaseInfra.ps1'
+              ScriptArguments: '
+                -ApplicationName "${{ parameters.ApplicationName}}"`
+                -BusinessSegment "${{ parameters.BusinessSegment}}"`
+                -ResourceEnvironments "${{ parameters.Environment}}"`
+                -ResourceRegions "${{ parameters.Region}}"`
+                -BillingApplicationName "${{ parameters.BillingApplicationName}}"`
+                -SystemOwner "${{ parameters.SystemOwner}}"`
+                -TechnicalOwner "${{ parameters.TechnicalOwner}}"`
+                -TCKey "${{ parameters.TCKey}}"`
+                -TeamEmail "${{ parameters.TeamEmail}}"`
+                -CallOutGroup "${{ parameters.CallOutGroup}}"`
+                -RemedyGroup "${{ parameters.RemedyGroup}}"`
+                -RGRegions "${{ parameters.Region}}"`
+                -ElevatedAccount "${{ parameters.ElevatedAccount}}"`
+                -UTRKey "${{ parameters.UTRKey}}"`
+                -BSLSystemOwner "${{ parameters.BSLSystemOwner}}"`
+                -ResourceGroups "${{ parameters.ResourceGroups}}"
+                -SystemOwnerImmutableId "${{ parameters.SystemOwnerImmutableId}}"
+                -ElevatedImmutableId "${{ parameters.ElevatedImmutableId}}"
+                    '
+              azurePowerShellVersion: 'LatestVersion'
+              pwsh: true
+  
+  # - stage: ApplyExemption 
+  #   displayName: Apply Policy Exemption
+  #   jobs:
+  #     - job: ApplyPolicyExemption
+  #       displayName: Apply Policy Exemption
+
+  #       steps:
+  #         - task: AzurePowerShell@5
+  #           displayName: Apply Policy Exemption
+  #           inputs:
+  #             azureSubscription: 'ZAR Platform Automation'
+  #             ScriptType: "InlineScript"
+  #             Inline: |
+  #               Install-Module -Name Bicep -Force
+  #               get-module -Name AZ
+  #               get-module -Name Bicep
+  #               $psversiontable
+  #               $ApplicationName = ("${{parameters.ApplicationName}}").Replace(" ","")
+  #               $BusinessSegment = "${{parameters.BusinessSegment}}"
+  #               $ResourceEnvironments = "${{parameters.Environment}}"
+  #               $ResourceRegions = "${{parameters.Region}}"
+                
+  #               $subName = "SB-" + $BusinessSegment.ToUpper() + "-" + $ApplicationName.Substring(0,1).ToUpper() + $ApplicationName.Substring(1) + "-" + $ResourceEnvironments.Substring(0,1).ToUpper() + $ResourceEnvironments.Substring(1)
+
+  #               $Context = Set-AzContext -Subscription $subName
+  #               if($ResourceRegions -eq "South Africa North"){
+  #                  $BaseRGName = "SAN-BaseInfra"
+  #               } elseif ($ResourceRegions -eq "South Africa West"){
+  #                   $BaseRGName = "SAW-BaseInfra"
+  #                 } elseif ($ResourceRegions -eq "North Europe"){
+  #                     $BaseRGName = "NEU-BaseInfra"
+  #                   } elseif ($ResourceRegions -eq "West Europe"){
+  #                       $BaseRGName = "WEU-BaseInfra"
+  #                     }
+  #               $ParamFileName = "SBG - Security Custom Network Initiative"
+  #               $TemplateFile = "./MicrosoftAuthorization/PolicyExemptions/resourceGroup/main.bicep"
+  #               $PolicyDef = Get-AzPolicyAssignment | Select-Object -ExpandProperty Properties | Where-Object DisplayName -Like $ParamFileName
+  #               $AssignmentId = (Get-AzPolicyAssignment -PolicyDefinitionId $PolicyDef.PolicyDefinitionId).PolicyAssignmentId
+  #               $exemptionDuration = "1"
+  #               $description = "Automated Base Infra Creation"
+  #               Write-Host "##[section]Applying the Policy Exemption to allow resource creation"
+  #               New-AzResourceGroupDeployment -ResourceGroupName $BaseRGName -TemplateFile $TemplateFile `
+  #                 -exemptionDuration $exemptionDuration `
+  #                 -description $description `
+  #                 -policyName $ParamFileName `
+  #                 -policyAssignmentId $AssignmentId `
+  #                 -displayName $ParamFileName
+  #             azurePowerShellVersion: "LatestVersion"
+  #             pwsh: true
+
+  # - stage: DeployResources
+  #   displayName: 'Deploy Resources'
+  #   jobs:
+  #     - job: CreateNewBaseInfra
+  #       timeoutInMinutes: 120
+  #       displayName: Deploy BaseInfra Resources
+  #       steps:
+  #           - task: AzurePowerShell@5
+  #             inputs:
+  #                azureSubscription: 'ZAR Platform Automation'
+  #                ScriptType: 'InlineScript'
+  #                Inline: |
+  #                    $ApplicationName = ("${{parameters.ApplicationName}}").Replace(" ","")
+  #                    $BusinessSegment = "${{parameters.BusinessSegment}}"
+  #                    $ResourceEnvironments = "${{parameters.Environment}}"
+  #                    $ResourceRegions = "${{parameters.Region}}"
+  #                    $subName = "SB-" + $BusinessSegment.ToUpper() + "-" + $ApplicationName.Substring(0,1).ToUpper() + $ApplicationName.Substring(1) + "-" + $ResourceEnvironments.Substring(0,1).ToUpper() + $ResourceEnvironments.Substring(1)
+  #                    $ResourceRegions = "${{parameters.Region}}"
+  #                    $RGRegions = "${{parameters.Region}}"
+  #                    $TemplateFile = "./AzureEnablement/BaseInfraResources.bicep"
+  #                    $specialCharsPattern = "[^\w\s]"
+  #                    $ApplicationName = $ApplicationName -replace $specialCharsPattern, ""
+  #                    $SystemOwner = "${{parameters.SystemOwner}}"
+  #                    $TechnicalOwner = ("${{parameters.TechnicalOwner}}").Split('@')
+  #                    $TechnicalOwner = $TechnicalOwner[0].Split('.')
+  #                    $TechnicalOwnerName = $TechnicalOwner[0]
+  #                    $TechnicalOwnerSurname = $TechnicalOwner[1]
+  #                    $ElevatedAccount = "${{parameters.ElevatedAccount}}"
+
+  #                     Write-Host $RGRegions
+  #                    if($RGRegions -eq "South Africa North"){
+  #                        $BaseRGName = "SAN-BaseInfra"
+  #                        $ResourceRegions = "san"
+  #                      } elseif ($RGRegions -eq "South Africa West"){
+  #                            $BaseRGName = "SAW-BaseInfra"
+  #                            $ResourceRegions = "saw"
+  #                        } elseif ($RGRegions -eq "North Europe"){
+  #                            $BaseRGName = "NEU-BaseInfra"
+  #                            $ResourceRegions = "neu"
+  #                          } elseif ($RGRegions -eq "West Europe"){
+  #                                $BaseRGName = "WEU-BaseInfra"
+  #                                $ResourceRegions = "weu"
+  #                            }
+  #                     Write-Host $BaseRGName
+  #                     $RGName = $ResourceRegions + "-" + $ApplicationName.Substring(0,1).ToUpper() + $ApplicationName.Substring(1) + "-" + $ResourceEnvironments.Substring(0,1).ToUpper() + $ResourceEnvironments.Substring(1)
+
+  #                     $storagAccountName =("sa" + $ResourceRegions + $ApplicationName + $ResourceEnvironments).ToLower()
+  #                     if($storagAccountName.Length -gt 24){
+  #                         $chartoSubtract = $storagAccountName.Length - 24
+  #                         $chartoSubtract = $ApplicationName.Length - $chartoSubtract
+  #                         $name = $ApplicationName.Substring(0,$chartoSubtract)
+  #                         $storagAccountName =("sa" + $ResourceRegions + $name + $ResourceEnvironments).ToLower()
+  #                     }
+  #                     $networkwatcherName = ("nw" + "-" + $ResourceRegions + "-" + $ApplicationName + "-" + $ResourceEnvironments).ToLower()
+  #                     if($networkwatcherName.Length -gt 80){
+  #                         $chartoSubtract = $networkwatcherName.Length - 80
+  #                         $chartoSubtract = $ApplicationName.Length - $chartoSubtract
+  #                         $name = $ApplicationName.Substring(0,$chartoSubtract)
+  #                         $networkwatcherName = ("nw" + "-" + $ResourceRegions + "-" + $name + "-" + $ResourceEnvironments).ToLower()
+  #                     }
+  #                     $keyVaultName = ("kv" + "-" + $ResourceRegions + "-" + $ApplicationName + "-" + $ResourceEnvironments + "-infra").ToLower()
+  #                     if($keyVaultName.Length -gt 24){
+  #                         $chartoSubtract = $keyVaultName.Length - 24
+  #                         $chartoSubtract = $ApplicationName.Length - $chartoSubtract
+  #                         $name = $ApplicationName.Substring(0,$chartoSubtract)
+  #                         $keyVaultName = ("kv" + "-" + $ResourceRegions + "-" + $name + "-" + $ResourceEnvironments + "-infra").ToLower()
+  #                     }
+  #                     $desName = ("des" + "-" + $ResourceRegions + "-" + $ApplicationName + "-" + $ResourceEnvironments).ToLower()
+  #                     if($desName.Length -gt 80){
+  #                         $chartoSubtract = $desName.Length - 80
+  #                         $chartoSubtract = $ApplicationName.Length - $chartoSubtract
+  #                         $name = $ApplicationName.Substring(0,$chartoSubtract)
+  #                         $desName = ("des" + "-" + $ResourceRegions + "-" + $name + "-" + $ResourceEnvironments).ToLower()
+  #                     }
+  #                     $recoveryVaultName = ("rsv" + "-" + $ResourceRegions + "-" + $ApplicationName + "-" + $ResourceEnvironments + "-asr").ToLower()
+  #                     if($recoveryVaultName.Length -gt 50){
+  #                         $chartoSubtract = $recoveryVaultName.Length - 50
+  #                         $chartoSubtract = $ApplicationName.Length - $chartoSubtract
+  #                         $name = $ApplicationName.Substring(0,$chartoSubtract)
+  #                         $recoveryVaultName = ("rsv" + "-" + $ResourceRegions + "-" + $name + "-" + $ResourceEnvironments + "-asr").ToLower()
+  #                     }
+  #                     $routeTableName = ("rtt" + "-" + $ResourceRegions + "-" + $ApplicationName + "-" + $ResourceEnvironments + "-default").ToLower()
+  #                     if($routeTableName.Length -gt 80){
+  #                         $chartoSubtract = $routeTableName.Length - 80
+  #                         $chartoSubtract = $ApplicationName.Length - $chartoSubtract
+  #                         $name = $ApplicationName.Substring(0,$chartoSubtract)
+  #                         $routeTableName = ("rtt" + "-" + $ResourceRegions + "-" + $name + "-" + $ResourceEnvironments + "-default").ToLower()
+  #                     }
+  #                     $routeName = ("rt" + "-" + $ResourceRegions + "-" + $ApplicationName + "-" + $ResourceEnvironments + "-default").ToLower()
+  #                     if($routeName.Length -gt 80){
+  #                         $chartoSubtract = $routeName.Length - 80
+  #                         $chartoSubtract = $ApplicationName.Length - $chartoSubtract
+  #                         $name = $ApplicationName.Substring(0,$chartoSubtract)
+  #                         $routeName = ("rt" + "-" + $ResourceRegions + "-" + $name + "-" + $ResourceEnvironments + "-default").ToLower()
+  #                     }
+  #                     $nsgNames = (
+  #                         ("nsg" + "-" + $ResourceRegions + "-" + $ApplicationName + "-" + $ResourceEnvironments + "-subn-app").ToLower(),
+  #                         ("nsg" + "-" + $ResourceRegions + "-" + $ApplicationName + "-" + $ResourceEnvironments + "-subn-db").ToLower(),
+  #                         ("nsg" + "-" + $ResourceRegions + "-" + $ApplicationName + "-" + $ResourceEnvironments + "-subn-web").ToLower()
+  #                     )
+  #                     $vNetName = ("vnet" + "-" + $ResourceRegions + "-" + $ApplicationName + "-" + $ResourceEnvironments).ToLower()
+  #                     $subnetNames = (
+  #                         ("subn" + "-" + $ResourceRegions + "-" + $ApplicationName + "-" + $ResourceEnvironments + "-app").ToLower(),
+  #                         ("subn" + "-" + $ResourceRegions + "-" + $ApplicationName + "-" + $ResourceEnvironments + "-db").ToLower(),
+  #                         ("subn" + "-" + $ResourceRegions + "-" + $ApplicationName + "-" + $ResourceEnvironments + "-web").ToLower()
+  #                     )
+
+  #                    Write-Host "##[section]Setting the Context to GuardRails to create the securityGroup Payload"
+
+  #                    $Context = Set-AzContext -Subscription "SB-SBG-GuardRails-Prod"
+                     
+  #                    Write-Host "##[section]Saving the payload for security groups"
+
+  #                     $ReaderGroup = "AZ-READ-RG-$ResourceRegions-$ApplicationName-$ResourceEnvironments"
+  #                     $ReaderDescription = "This group will be used to grant read access to $RGName"
+  #                     $ContributorGroup = "AZ-CONT-RG-$ResourceRegions-$ApplicationName-$ResourceEnvironments"
+  #                     $ContributorDescription = "This group will be used to grant contributor access to $RGName"
+
+                      
+  #                     $Payload = [PSCustomObject]@{
+  #                         ManagedBy = $SystemOwner
+  #                         TechnicalOwnerName = $TechnicalOwnerName
+  #                         TechnicalOwnerSurname = $TechnicalOwnerSurname
+  #                         ReaderGroup = $ReaderGroup
+  #                         ReaderDescription = $ReaderDescription
+  #                         ContributorGroup = $ContributorGroup
+  #                         ContributorDescription = $ContributorDescription
+  #                         ElevatedAccount = $ElevatedAccount
+  #                     }
+                      
+  #                     $Payload | ConvertTo-Json | Out-File -FilePath "./$RGName.json"
+                      
+  #                     $StorageAccount = Get-AzStorageAccount -ResourceGroupName "GuardRails" -Name "guardrailsstorage"
+  #                     $StorageAccount = $StorageAccount.Context
+                      
+  #                     $Blob2HT = @{
+  #                     File             = "./$RGName.json" 
+  #                     Container        = "azuresubscriptionvending"  
+  #                     Blob             = "$RGName.json"
+  #                     Context          = $StorageAccount
+  #                     StandardBlobTier = 'Hot'
+  #                     }
+  #                     Set-AzStorageBlobContent @Blob2HT -Force
+
+  #                    Write-Host "##[section]Setting the Context to $subName"
+
+  #                    $Context = Set-AzContext -Subscription $subName
+  #                    $subscriptionId =  Get-AzSubscription -SubscriptionName $subName
+  #                    $subscriptionId = $subscriptionId.id
+
+  #                    Write-Host "##[section]Starting the Resource Deployments"
+
+  #                    New-AzResourceGroupDeployment -ResourceGroupName $RGName -TemplateFile $TemplateFile `
+  #                      -subscriptionId $subscriptionId `
+  #                      -environment $ResourceEnvironments `
+  #                      -region $RGRegions `
+  #                      -newRgName $BaseRGName `
+  #                      -storageAccountName $storagAccountName `
+  #                      -networkWatcherName $networkwatcherName `
+  #                      -keyVaultName $keyVaultName `
+  #                      -desName $desName `
+  #                      -vaultName $recoveryVaultName `
+  #                      -RTTName $routeTableName `
+  #                      -routeName $routeName `
+  #                      -NSGNames $nsgNames `
+  #                      -vNetName $vNetName `
+  #                      -subnetNames $subnetNames
+
+  #                      Write-Host "##[section]Resource Deployments completed"
+
+  #                      # Write-Host "##[section]Waiting 30 min before checking if the groups has been replicated"
+  #                      # Start-Sleep -Seconds 1800
+
+  #                      Write-Host "##[section]Adding the Security groups to the Resource Group"
+
+  #                      $ReaderGroupName = "AZ-READ-RG-$RGName"
+  #                      $ReaderRoleDefinitionName = "Reader"
+  #                      $ContGroupName = "AZ-CONT-RG-$RGName"
+  #                      $ContRoleDefinitionName = "Contributor"
+  #                      $retry = 0
+                    
+  #                      # Loop until the Reader group is available
+  #                      while (-not (Get-AzADGroup -DisplayName $ReaderGroupName) -and $retry -lt 10) {
+  #                          Write-Host "##[section]Waiting for security group $RGName to be available..."
+  #                          $retry ++
+  #                          Start-Sleep -Seconds 600
+  #                          Write-Host "##[warning]$ReaderGroupName is not yet available trying for the $retry time"
+
+  #                      }
+                       
+  #                      if(Get-AzADGroup -DisplayName $ReaderGroupName){
+  #                          # Get the Reader group object
+  #                          Write-Host "##[section]$ReaderGroupName is available attempting to add it to $RGName" 
+  #                          $securityGroup = Get-AzADGroup -DisplayName $ReaderGroupName
+                       
+  #                          # Get the role definition
+  #                          $roleDefinition = Get-AzRoleDefinition -Name $ReaderRoleDefinitionName
+                       
+  #                          # Add the security group to the resource group with the Reader role assignment
+  #                          New-AzRoleAssignment -ObjectId $securityGroup.Id -RoleDefinitionId $roleDefinition.Id -Scope "/subscriptions/$subscriptionId/resourceGroups/$RGName"
+  #                          Write-Host "##[section]Security group $ReaderGroupName added to resource group $RGName with role $ReaderRoleDefinitionName"
+                       
+  #                      } else {
+  #                       Write-Host "##[error]Failed to detect security group $ReaderGroupName please ensure it has been created in On-Prem AD"
+
+  #                      }
+  #                      $retry = 0
+  #                     # Loop until the Contributor group is available
+  #                      while (-not (Get-AzADGroup -DisplayName $ContGroupName) -and $retry -lt 10) {
+  #                         Write-Host "##[section]Waiting for security group $ContGroupName to be available.."
+  #                          $retry ++
+  #                          Start-Sleep -Seconds 600
+  #                          Write-Host "##[warning]$ContGroupName is not yet available trying for the $retry time"
+
+  #                      }
+                       
+  #                      if(Get-AzADGroup -DisplayName $ContGroupName){
+  #                          # Get the Reader group object
+  #                          $securityGroup = Get-AzADGroup -DisplayName $ContGroupName
+                       
+  #                          # Get the role definition
+  #                          $roleDefinition = Get-AzRoleDefinition -Name $ContRoleDefinitionName
+                       
+  #                          # Add the security group to the resource group with the Contributor role assignment
+  #                          New-AzRoleAssignment -ObjectId $securityGroup.Id -RoleDefinitionId $roleDefinition.Id -Scope "/subscriptions/$subscriptionId/resourceGroups/$RGName"
+  #                          Write-Host "##[section]Security group $ContGroupName added to resource group $RGName with role $ContRoleDefinitionName"
+                       
+  #                      } else {
+  #                       Write-Host "##[error]Failed to detect security group $ContGroupName please ensure it has been created in On-Prem AD"
+
+  #                      }
+  #                azurePowerShellVersion: 'LatestVersion'
+  #                pwsh: true
+
+# -------------------------- #
+# Close Change Request Stage #
+# -------------------- ------#
+
+  # - stage: Close_Remedy_Change_Request_Success
+  #   displayName: Close_Remedy_Change_Request_Success
+  #   condition: succeeded()
+  #   dependsOn: 
+  #     - Create_Request
+  #     - DeployResources
+  #   variables: 
+  #     ChangeNumber: $[ stageDependencies.Create_Request.CreateChange.outputs['CreateChangescript.ChangeNumber']]
+  #   jobs:
+  #     - template: RemedyIntergration/Templates/CloseChangeRemedySuccess.yml
+  #       parameters:
+  #         OUT_ChangeNumber : '$(ChangeNumber)'
+
+  # - stage: Close_Request_Failure
+  #   displayName: Close_Remedy_Change_Request_Failure
+  #   condition: failed()
+  #   dependsOn: 
+  #     - Create_Request
+  #     - DeployResources
+  #   variables: 
+  #     ChangeNumber: $[ stageDependencies.Create_Request.CreateChange.outputs['CreateChangescript.ChangeNumber']]
+  #   jobs:
+  #     - template: RemedyIntergration/Templates/CloseChangeRemedyFailure.yml
+  #       parameters:
+  #         OUT_ChangeNumber : '$(ChangeNumber)'
+
