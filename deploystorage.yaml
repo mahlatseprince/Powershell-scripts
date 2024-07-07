@@ -1,0 +1,34 @@
+name: 'Storage Account deployment'
+
+parameters:
+
+    - name: StorageAccountName
+      displayName: name of the storage account
+
+trigger:
+    - none
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  serviceConnection: 'Mahlatse-Infra-Test'
+
+stages:
+  - stage: CreateStorageAccount
+    displayName: Deploy Storage Account
+    jobs: 
+      - job: DeployStorage
+        displayName: Deploy Storage
+        steps: 
+          - task: AzurePowerShell@5
+            inputs: 
+              azureSubscription: $(serviceConnection)
+              ScriptType: 'FilePath'
+              ScriptPath: './Deployments/storagedeploy.ps1'
+              ScriptArguments: '
+                -StorageAccountName "${{ parameters.StorageAccountName}}"
+                    '
+              AzurePowerShellVersion: 'LatestVersion'
+              pwsh: true
+
